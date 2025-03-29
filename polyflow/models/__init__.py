@@ -7,6 +7,10 @@ from polyflow.models.retriever_sentence_transformer import SentenceVectorizer
 from polyflow.models.retriever_colbert import ColBERTEngine
 from polyflow.models.language_temporal import TemporalLanguageProcessor
 from polyflow.models.language_llama import LlamaProcessor
+from polyflow.models.LM_time import LMTime
+
+# Define LM as an alias for LanguageProcessor to maintain compatibility
+LM = LanguageProcessor
 
 __all__ = [
     "EncoderReranker",
@@ -18,4 +22,6 @@ __all__ = [
     "ColBERTEngine",
     "TemporalLanguageProcessor",
     "LlamaProcessor",
+    "LMTime",
+    "LM",
 ]

@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolyFlow Sheets</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root {
+            --header-height: 60px;
+            --command-bar-height: 50px;
+            --sidebar-width: 250px;
+        }
+        
+        body {
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #header {
+            height: var(--header-height);
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        #main-container {
+            display: flex;
+            height: calc(100vh - var(--header-height));
+        }
+        
+        #sidebar {
+            width: var(--sidebar-width);
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        #content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #command-bar {
+            height: var(--command-bar-height);
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        #sheet-container {
+            flex: 2;
+            overflow: auto;
+            padding: 15px;
+        }
+        
+        #visualization-container {
+            flex: 1;
+            overflow: auto;
+            padding: 15px;
+            border-top: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+        
+        #sheet-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        #sheet-table th, #sheet-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px;
+            min-width: 100px;
+            height: 40px;
+            position: relative;
+        }
+        
+        #sheet-table th {
+            background-color: #f8f9fa;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        #sheet-table .row-header {
+            background-color: #f8f9fa;
+            text-align: center;
+            font-weight: 600;
+            width: 50px;
+        }
+        
+        .cell-input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .cell-input:focus {
+            outline: 2px solid #007bff;
+        }
+        
+        .sheet-list-item {
+            cursor: pointer;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        
+        .sheet-list-item:hover {
+            background-color: #e9ecef;
+        }
+        
+        .sheet-list-item.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        #command-input {
+            flex: 1;
+            margin-right: 10px;
+        }
+        
+        #error-alert, #success-alert {
+            display: none;
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+        }
+        
+        .documentation-section {
+            margin-top: 20px;
+            border-top: 1px solid #dee2e6;
+            padding-top: 10px;
+        }
+        
+        .command-example {
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 5px;
+            border-radius: 3px;
+            margin: 3px 0;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h3>PolyFlow Sheets</h3>
+        <div>
+            <button class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#loadExampleModal">
+                <i class="fas fa-database"></i> Load Example Data
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSheetModal">
+                <i class="fas fa-plus"></i> New Sheet
+            </button>
+        </div>
+    </div>
+    
+    <div id="main-container">
+        <div id="sidebar">
+            <h5>Sheets</h5>
+            <div id="sheet-list">
+                {% if sheets %}
+                    {% for sheet_name in sheets %}
+                        <div class="sheet-list-item {% if sheet_name == current_sheet %}active{% endif %}" 
+                             data-sheet="{{ sheet_name }}">
+                            {{ sheet_name }}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p>No sheets available</p>
+                {% endif %}
+            </div>
+            
+            <div class="documentation-section">
+                <h5>Commands</h5>
+                <small>
+                    <div class="command-example">vector_transform(column="A", transform_query="Extract keywords")</div>
+                    <div class="command-example">sem_classify(text_column="A", categories=["Cat1", "Cat2"])</div>
+                    <div class="command-example">sem_hybrid_classify(text_column="A", categories=["Cat1", "Cat2"])</div>
+                    <div class="command-example">sk_sem_cluster(text_column="A", n_clusters=3)</div>
+                    <div class="command-example">llm_transform(text_column="A", instruction="Summarize")</div>
+                    <div class="command-example">vector_join(column="A", join_df="Sheet2", join_column="B", user_instruction="Compare")</div>
+                    <div class="command-example">vecsem_time_series(time_col="date", value_col="value", operation="detect_anomalies")</div>
+                </small>
+                
+                <h5 class="mt-3">Visualizations</h5>
+                <small>
+                    <div class="command-example">visualize(type="bar", x="A", y="B", title="Bar Chart")</div>
+                    <div class="command-example">visualize(type="line", x="A", y="B")</div>
+                    <div class="command-example">visualize(type="scatter", x="A", y="B")</div>
+                    <div class="command-example">visualize(type="pie", x="A", y="B")</div>
+                    <div class="command-example">visualize(type="heatmap", x="A", y="B", pivot="C")</div>
+                </small>
+            </div>
+        </div>
+        
+        <div id="content-area">
+            <div id="command-bar">
+                <input type="text" id="command-input" class="form-control" placeholder="Enter PolyFlow command...">
+                <button id="run-command-btn" class="btn btn-primary">Run</button>
+                <div id="command-spinner" class="loading-spinner"></div>
+            </div>
+            
+            <div id="sheet-container">
+                <table id="sheet-table" class="table table-bordered">
+                    <thead>
+                        <tr id="column-headers">
+                            <th></th>
+                            <!-- Column headers will be added dynamically -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Table content will be added dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="visualization-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>Visualization</h5>
+                    <button id="clear-visualization-btn" class="btn btn-sm btn-outline-secondary">Clear</button>
+                </div>
+                <div id="visualization-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- New Sheet Modal -->
+    <div class="modal fade" id="newSheetModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Sheet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/create_sheet" method="post">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="sheet-name" class="form-label">Sheet Name</label>
+                            <input type="text" class="form-control" id="sheet-name" name="sheet_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="num-rows" class="form-label">Number of Rows</label>
+                            <input type="number" class="form-control" id="num-rows" name="num_rows" value="10" min="1" max="100">
+                        </div>
+                        <div class="mb-3">
+                            <label for="num-cols" class="form-label">Number of Columns</label>
+                            <input type="number" class="form-control" id="num-cols" name="num_cols" value="5" min="1" max="26">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load Example Data Modal -->
+    <div class="modal fade" id="loadExampleModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Load Example Dataset</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="example-dataset" class="form-label">Select Dataset</label>
+                        <select class="form-select" id="example-dataset">
+                            {% for dataset in example_datasets %}
+                                <option value="{{ dataset }}">{{ dataset|replace('_', ' ')|title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="example-sheet-name" class="form-label">Sheet Name</label>
+                        <input type="text" class="form-control" id="example-sheet-name">
+                    </div>
+                    <div class="example-description" id="dataset-description">
+                        <!-- Description will be populated dynamically -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="load-example-btn">Load Dataset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Command History Panel (Hidden by default) -->
+    <div id="command-history-panel" style="display: none;">
+        <div class="command-history">
+            <h6>Command History</h6>
+            <div id="command-history-list"></div>
+        </div>
+    </div>
+    
+    <!-- Alerts -->
+    <div id="error-alert" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span id="error-message"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    
+    <div id="success-alert" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span id="success-message"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    
+    <!-- Help Modal for Clustering -->
+    <div class="modal fade" id="clusteringHelpModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Clustering Help</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Tips for Successful Clustering</h6>
+                    <ul>
+                        <li><strong>Data Volume:</strong> Ensure you have enough data points for the number of clusters. A good rule of thumb is to have at least 5-10 data points per cluster.</li>
+                        <li><strong>Reduce Clusters:</strong> If you have a small dataset, try reducing the number of clusters. For example, with 20 data points, aim for 2-4 clusters.</li>
+                        <li><strong>Data Variety:</strong> Make sure your data has enough variation. If all data points are too similar, clustering may not produce meaningful results.</li>
+                        <li><strong>Alternative Methods:</strong> For very small datasets, consider hierarchical clustering instead of k-means by using <code>method="hierarchical"</code> in your command.</li>
+                    </ul>
+                    
+                    <h6>Example Command</h6>
+                    <code>sk_sem_cluster(text_column="your_column", n_clusters=3, method="kmeans")</code>
+                    
+                    <h6>Minimum Data Requirements</h6>
+                    <ul>
+                        <li>2 clusters: at least 10 data points</li>
+                        <li>3 clusters: at least 15 data points</li>
+                        <li>4 clusters: at least 20 data points</li>
+                        <li>5 clusters: at least 25 data points</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Load initial sheet data if available
+            if ('{{ current_sheet }}') {
+                loadSheetData('{{ current_sheet }}');
+            }
+            
+            // Initialize dataset descriptions
+            const datasetDescriptions = {
+                customer_feedback: "Customer feedback data with ratings and comments for sentiment analysis and classification.",
+                product_descriptions: "Product catalog with detailed descriptions for semantic analysis and categorization.",
+                sales_data: "Time series sales data across regions and products for trend analysis and forecasting.",
+                support_tickets: "Support ticket descriptions for classification and priority analysis."
+            };
+            
+            // Update dataset description when selection changes
+            $('#example-dataset').change(function() {
+                const dataset = $(this).val();
+                const description = datasetDescriptions[dataset] || "No description available";
+                $('#dataset-description').html(`<p><strong>Dataset:</strong> ${description}</p>`);
+                
+                // Update sheet name field
+                $('#example-sheet-name').val(dataset.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+            }).trigger('change');
+            
+            // Load example dataset
+            $('#load-example-btn').click(function() {
+                const dataset = $('#example-dataset').val();
+                const sheetName = $('#example-sheet-name').val() || dataset.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                
+                $.post('/load_example_dataset', {
+                    dataset_name: dataset,
+                    sheet_name: sheetName
+                })
+                .done(function(response) {
+                    if (response.error) {
+                        showError(response.error);
+                    } else {
+                        $('#loadExampleModal').modal('hide');
+                        showSuccess(response.message || 'Dataset loaded successfully');
+                        // Refresh page to show new sheet
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 500);
+                    }
+                })
+                .fail(function() {
+                    showError('Failed to load example dataset');
+                });
+            });
+            
+            // Command history
+            const commandHistory = [];
+            
+            // Switch between sheets
+            $(document).on('click', '.sheet-list-item', function() {
+                $('.sheet-list-item').removeClass('active');
+                $(this).addClass('active');
+                
+                const sheetName = $(this).data('sheet');
+                loadSheetData(sheetName);
+            });
+            
+            // Handle cell editing
+            $(document).on('blur', '.cell-input', function() {
+                const row = $(this).data('row');
+                const col = $(this).data('col');
+                const value = $(this).val();
+                
+                updateCell(row, col, value);
+            });
+            
+            // Run command
+            $('#run-command-btn').click(function() {
+                const command = $('#command-input').val().trim();
+                if (command) {
+                    runCommand(command);
+                    // Add to history
+                    if (commandHistory.indexOf(command) === -1) {
+                        commandHistory.unshift(command);
+                        if (commandHistory.length > 10) commandHistory.pop();
+                        updateCommandHistory();
+                    }
+                }
+            });
+            
+            // Allow pressing Enter to run command
+            $('#command-input').keypress(function(e) {
+                if (e.which === 13) {
+                    const command = $(this).val().trim();
+                    if (command) {
+                        runCommand(command);
+                        // Add to history
+                        if (commandHistory.indexOf(command) === -1) {
+                            commandHistory.unshift(command);
+                            if (commandHistory.length > 10) commandHistory.pop();
+                            updateCommandHistory();
+                        }
+                    }
+                    return false;
+                }
+            });
+            
+            // Update command history display
+            function updateCommandHistory() {
+                $('#command-history-list').empty();
+                commandHistory.forEach(function(cmd) {
+                    $('#command-history-list').append(`
+                        <div class="command-history-item" data-command="${cmd}">
+                            ${cmd}
+                        </div>
+                    `);
+                });
+            }
+            
+            // Use command from history
+            $(document).on('click', '.command-history-item', function() {
+                const command = $(this).data('command');
+                $('#command-input').val(command);
+            });
+            
+            // Clear visualization
+            $('#clear-visualization-btn').click(function() {
+                $('#visualization-content').empty();
+            });
+            
+            // Initialize command suggestions
+            const commandSuggestions = {
+                'sk_sem_cluster': 'Clusters text data into semantic groups. Example: sk_sem_cluster(text_column="comments", n_clusters=3)',
+                'sem_classify': 'Classifies text into predefined categories. Example: sem_classify(text_column="text", categories=["positive", "negative"])',
+                'vector_transform': 'Transforms text data using vector operations. Example: vector_transform(column="description", transform_query="Extract keywords")',
+                'llm_transform': 'Transforms text using LLM. Example: llm_transform(text_column="content", instruction="Summarize in one sentence")'
+            };
+        });
+        
+        // Load sheet data via AJAX
+        function loadSheetData(sheetName) {
+            $.getJSON('/get_sheet_data', { sheet_name: sheetName }, function(data) {
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                renderSheet(data.columns, data.data);
+            });
+        }
+        
+        // Render the sheet with data
+        function renderSheet(columns, data) {
+            // Clear existing table
+            $('#column-headers').html('<th></th>');
+            $('#sheet-table tbody').empty();
+            
+            // Add column headers
+            columns.forEach(function(col, index) {
+                $('#column-headers').append(`<th>${col}</th>`);
+            });
+            
+            // Add rows with data
+            data.forEach(function(row, rowIndex) {
+                let rowHtml = `<tr><th class="row-header">${rowIndex + 1}</th>`;
+                
+                columns.forEach(function(col) {
+                    const cellValue = row[col] !== undefined ? row[col] : '';
+                    rowHtml += `
+                        <td>
+                            <input type="text" class="cell-input" 
+                                   value="${cellValue}" 
+                                   data-row="${rowIndex}" 
+                                   data-col="${col}">
+                        </td>
+                    `;
+                });
+                
+                rowHtml += '</tr>';
+                $('#sheet-table tbody').append(rowHtml);
+            });
+        }
+        
+        // Update cell via AJAX
+        function updateCell(row, col, value) {
+            const activeSheet = $('.sheet-list-item.active').data('sheet');
+            
+            $.post('/update_cell', {
+                sheet_name: activeSheet,
+                row: row,
+                col: col,
+                value: value
+            })
+            .done(function(data) {
+                if (data.error) {
+                    showError(data.error);
+                }
+            })
+            .fail(function() {
+                showError('Failed to update cell');
+            });
+        }
+        
+        // Run PolyFlow command
+        function runCommand(command) {
+            const activeSheet = $('.sheet-list-item.active').data('sheet');
+            
+            // Show loading spinner
+            $('#command-spinner').show();
+            
+            $.post('/run_command', {
+                sheet_name: activeSheet,
+                command: command
+            })
+            .done(function(data) {
+                // Hide loading spinner
+                $('#command-spinner').hide();
+                
+                if (data.error) {
+                    // Special handling for clustering errors
+                    if (command.startsWith('sk_sem_cluster') && 
+                        (data.error.includes('Insufficient data') || 
+                         data.error.includes('clustering failed') ||
+                         data.error.includes('Cannot cluster') ||
+                         data.error.includes('data points'))) {
+                        
+                        // Extract current settings
+                        const match = command.match(/n_clusters=(\d+)/);
+                        const currentClusters = match ? parseInt(match[1]) : 3;
+                        
+                        // Suggest fewer clusters
+                        if (currentClusters > 2) {
+                            const suggestedClusters = Math.max(2, currentClusters - 1);
+                            const newCommand = command.replace(/n_clusters=\d+/, `n_clusters=${suggestedClusters}`);
+                            
+                            const suggestion = `<div class="mt-2">
+                                <strong>Suggestion:</strong> Try with fewer clusters: 
+                                <button class="btn btn-sm btn-outline-primary retry-command" 
+                                        data-command="${newCommand}">
+                                    Try with ${suggestedClusters} clusters
+                                </button>
+                            </div>`;
+                            
+                            data.error += suggestion;
+                        }
+                        
+                        // Check if using kmeans and suggest hierarchical
+                        if (!command.includes('method="hierarchical"')) {
+                            let hierarchicalCommand = command;
+                            if (command.includes('method=')) {
+                                hierarchicalCommand = command.replace(/method="[^"]*"/, 'method="hierarchical"');
+                            } else {
+                                hierarchicalCommand = command.replace(')', ', method="hierarchical")');
+                            }
+                            
+                            const suggestion = `<div class="mt-2">
+                                <strong>Or:</strong> Try hierarchical clustering method: 
+                                <button class="btn btn-sm btn-outline-primary retry-command" 
+                                        data-command="${hierarchicalCommand}">
+                                    Try hierarchical clustering
+                                </button>
+                            </div>`;
+                            
+                            data.error += suggestion;
+                        }
+                    }
+                    
+                    showError(data.error);
+                    return;
+                }
+                
+                if (data.visualization) {
+                    // Show visualization
+                    $('#visualization-content').html(data.visualization);
+                } else if (data.columns && data.data) {
+                    // Update sheet with result data
+                    renderSheet(data.columns, data.data);
+                    showSuccess('Command executed successfully');
+                }
+            })
+            .fail(function() {
+                // Hide loading spinner
+                $('#command-spinner').hide();
+                showError('Failed to execute command');
+            });
+            
+            // Clear command input
+            $('#command-input').val('');
+        }
+        
+        // Handle retry command button clicks
+        $(document).on('click', '.retry-command', function(e) {
+            e.preventDefault();
+            const command = $(this).data('command');
+            $('#command-input').val(command);
+            runCommand(command);
+        });
+        
+        // Show error message
+        function showError(message) {
+            $('#error-message').text(message);
+            $('#error-alert').show();
+            
+            // Check if this is a clustering related error
+            if (message.includes('cluster') || 
+                message.includes('Insufficient data') || 
+                message.includes('data points') || 
+                message.includes('Cannot create')) {
+                
+                // Add a "Show Help" button to the error message
+                $('#error-message').append(
+                    ' <button class="btn btn-sm btn-outline-light" onclick="$(\'#clusteringHelpModal\').modal(\'show\')">Show Clustering Help</button>'
+                );
+            }
+            
+            setTimeout(function() {
+                $('#error-alert').fadeOut();
+            }, 8000);  // Display errors for longer (8 seconds)
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            $('#success-message').text(message);
+            $('#success-alert').show();
+            
+            setTimeout(function() {
+                $('#success-alert').fadeOut();
+            }, 3000);
+        }
+    </script>
+</body>
+</html> 

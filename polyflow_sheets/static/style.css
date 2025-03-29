@@ -1,0 +1,141 @@
+/* Additional styles for PolyFlow Sheets */
+
+/* Styling for cell selection */
+.cell-selected {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+/* Styling for formula bar */
+.formula-bar {
+    font-family: monospace;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    margin-bottom: 10px;
+}
+
+/* Styling for visualization results */
+.visualization-result {
+    margin-top: 15px;
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 5px;
+    background-color: white;
+}
+
+/* Tooltip for command help */
+.command-tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.command-tooltip .tooltip-text {
+    visibility: hidden;
+    width: 300px;
+    background-color: #555;
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 10px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -150px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.command-tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Loading indicator */
+.loading-spinner {
+    display: none;
+    margin-left: 10px;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 123, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #007bff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Cell types styling */
+.cell-numeric {
+    text-align: right;
+}
+
+.cell-date {
+    color: #28a745;
+}
+
+.cell-formula {
+    color: #6610f2;
+}
+
+/* Highlighting for matched cells */
+.highlight-match {
+    background-color: rgba(255, 193, 7, 0.2);
+}
+
+/* Styling for row/column add buttons */
+.add-row-btn, .add-col-btn {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.add-row-btn:hover, .add-col-btn:hover {
+    background-color: #e9ecef;
+}
+
+/* Command history styling */
+.command-history {
+    margin-top: 15px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.command-history-item {
+    padding: 5px;
+    border-bottom: 1px solid #e9ecef;
+    font-family: monospace;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.command-history-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #main-container {
+        flex-direction: column;
+    }
+    
+    #sidebar {
+        width: 100%;
+        max-height: 200px;
+    }
+    
+    .command-example {
+        font-size: 11px;
+    }
+} 

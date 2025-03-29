@@ -92,3 +92,6 @@ class RetrieverEngine(ABC):
         **kwargs: Dict[str, Any],
     ) -> RMOutput:
         return self.search(queries, K, **kwargs)
+
+# Define RM as alias for RetrieverEngine for backward compatibility
+RM = RetrieverEngine
